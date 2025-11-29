@@ -25,6 +25,11 @@ Just enter a **YouTube API Key** and a **Channel URL/ID**, and instantly extract
   <img src="https://raw.githubusercontent.com/Rachana149/YouTube_Info_Extractor/main/Screenshot%202025-11-22%20222939.png" width="750">
 </p>
 
+<p align="center">
+   <img src="https://github.com/Rachana149/YouTube_Info_Extractor/blob/main/Screenshot%202025-11-29%20214247.png"
+ width="750">
+</p>
+
 
 ---
 
