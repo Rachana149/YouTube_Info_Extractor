@@ -19,14 +19,25 @@ Just enter a **YouTube API Key** and a **Channel URL/ID**, and instantly extract
 ---
 
 ## 🖼 UI Preview
+ youtube_info_extractor
 
-(Add your app screenshot here later)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/Rachana149/YouTube_Info_Extractor/main/Screenshot%202025-11-22%20222939.png" width="750">
+</p>
 
-`![App Screenshot](app_screenshot.png)` *(optional)*
 
 ---
 
 ## 📌 Requirements
 
 Create a file named `requirements.txt` and include:
+streamlit
+google-api-python-client
+pandas
+numpy
+isodate
+google-auth
+uritemplate
+
+
 
