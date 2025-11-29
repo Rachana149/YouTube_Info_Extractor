@@ -35,7 +35,8 @@ if "api_key" not in st.session_state:
 
 if "channel_url" not in st.session_state:
     st.session_state.channel_url = ""
-logo_path = "C:/Users/Rachana Mahato/OneDrive/Documents/project/Youtube_logo3.png"
+logo_path = "Youtube_logo3.png"
+
 if not st.session_state.start_dashboard:
 
     col_left, col_right = st.columns([1.2, 1])
