@@ -175,6 +175,9 @@ if st.session_state.start_dashboard:
     youtube = build("youtube", "v3", developerKey=API_KEY)
 
     channel_id = extract_channel_id(channel_url, youtube)
+    if not channel_id:
+        st.error("❌ Invalid YouTube Channel URL. Please enter a valid channel link like:\n\nhttps://www.youtube.com/@example\nhttps://www.youtube.com/channel/UCxxxxxxxxxxxx")
+        st.stop()
     playlist_id, channel_name, stats, channel_logo = get_uploads_playlist_id(channel_id, youtube)
 
     st.title(f"📺 {channel_name}")
