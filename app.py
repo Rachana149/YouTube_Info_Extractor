@@ -7,36 +7,39 @@ import re
 from datetime import timedelta
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
+
+# ---- SETTINGS ----
 st.set_page_config(page_title="YouTube Analyzer", layout="wide")
+
 st.markdown("""
     <style>
     .stApp {
         background: linear-gradient(135deg, #1a0000 0%, #8b0000 50%, #000000 100%);
         background-attachment: fixed;
     }
-
     h1, h2, h3, label {
         color: white !important;
         font-weight: 600;
     }
-
     section[data-testid="stSidebar"] {
         background: rgba(0,0,0,0.2);
         backdrop-filter: blur(6px);
     }
-
     </style>
 """, unsafe_allow_html=True)
+
+# ---- LOAD API KEY FROM SECRETS ----
+API_KEY = st.secrets["API_KEY"]   # 🔥 Now it's hidden & secure
+
 if "start_dashboard" not in st.session_state:
     st.session_state.start_dashboard = False
 
-if "api_key" not in st.session_state:
-    st.session_state.api_key = ""
-
 if "channel_url" not in st.session_state:
     st.session_state.channel_url = ""
+
 logo_path = "Youtube_logo3.png"
 
+# ---- UI START PAGE ----
 if not st.session_state.start_dashboard:
 
     col_left, col_right = st.columns([1.2, 1])
@@ -45,25 +48,22 @@ if not st.session_state.start_dashboard:
     with col_right:
         st.markdown("<h1 style='font-size:55px; line-height:55px;'>YouTube<br>Info Extractor</h1>", unsafe_allow_html=True)
 
-        api_key = st.text_input("🔑 Enter API Key", type="password")
         channel_url = st.text_input("📺 Enter Channel URL or Channel ID")
 
         start_btn = st.button("🚀 Fetch Data")
 
     if start_btn:
-        if not api_key:
-            st.error("⚠ Please enter API Key.")
-        elif not channel_url:
+        if not channel_url:
             st.error("⚠ Please enter Channel URL.")
         else:
-            st.session_state.api_key = api_key
             st.session_state.channel_url = channel_url
             st.session_state.start_dashboard = True
             st.rerun()
+
+# ---- FUNCTIONS ----
 def extract_channel_id(url, youtube=None):
     try:
         url = url.strip()
-
         if "/channel/" in url:
             return url.split("/channel/")[-1].split("?")[0]
 
@@ -90,19 +90,11 @@ def get_uploads_playlist_id(channel_id, youtube):
         id=channel_id
     ).execute()
 
-    if not res.get("items"):
-        return None, None, None, None
-
     info = res["items"][0]
-
     playlist_id = info["contentDetails"]["relatedPlaylists"]["uploads"]
     channel_name = info["snippet"]["title"]
     stats = info["statistics"]
-
-    thumbnail_info = info["snippet"]["thumbnails"]
-    channel_logo = thumbnail_info.get("high", thumbnail_info.get("default"))["url"]
-
-    return playlist_id, channel_name, stats, channel_logo
+    return playlist_id, channel_name, stats
 
 
 def get_videos_from_playlist(playlist_id, youtube, max_results=100):
@@ -117,8 +109,7 @@ def get_videos_from_playlist(playlist_id, youtube, max_results=100):
             pageToken=next_page
         ).execute()
 
-        for item in res.get("items", []):
-            videos.append(item["contentDetails"]["videoId"])
+        videos.extend([item["contentDetails"]["videoId"] for item in res.get("items", [])])
 
         next_page = res.get("nextPageToken")
         if not next_page:
@@ -147,7 +138,7 @@ def get_video_stats(video_ids, youtube):
             like_count = int(stats.get("likeCount", 0))
             comment_count = int(stats.get("commentCount", 0))
 
-            engagement = round((like_count + comment_count) / view_count * 100, 3) if view_count > 0 else 0
+            engagement = round((like_count + comment_count) / view_count * 100, 3) if view_count else 0
 
             duration_iso = item["contentDetails"].get("duration", "PT0S")
             duration_td = isodate.parse_duration(duration_iso)
@@ -156,66 +147,47 @@ def get_video_stats(video_ids, youtube):
             thumbnail_url = snippet["thumbnails"].get("high", snippet["thumbnails"].get("default"))["url"]
 
             data.append({
-                "VideoID": item["id"],
                 "Title": snippet.get("title", ""),
-                "Published": snippet.get("publishedAt", "").split("T")[0],
                 "Views": view_count,
                 "Likes": like_count,
                 "Comments": comment_count,
-                "Engagement (%)": engagement,
-                "Duration_minutes": duration_minutes,
+                "Duration (min)": duration_minutes,
+                "Engagement %": engagement,
                 "Thumbnail": thumbnail_url,
                 "URL": f"https://youtu.be/{item['id']}"
             })
 
-    return data
+    return pd.DataFrame(data)
+
+# ---- DASHBOARD ----
 if st.session_state.start_dashboard:
 
-    api_key = st.session_state.api_key
+    youtube = build("youtube", "v3", developerKey=API_KEY)
+
     channel_url = st.session_state.channel_url
-
-    youtube = build("youtube", "v3", developerKey=api_key)
-
     channel_id = extract_channel_id(channel_url, youtube)
-    playlist_id, channel_name, stats, channel_logo = get_uploads_playlist_id(channel_id, youtube)
+    playlist_id, channel_name, stats = get_uploads_playlist_id(channel_id, youtube)
 
     st.title(f"📺 {channel_name}")
 
-   
     c1, c2, c3 = st.columns(3)
     c1.metric("Total Videos", stats.get("videoCount", "0"))
     c2.metric("Total Views", stats.get("viewCount", "0"))
     c3.metric("Subscribers", stats.get("subscriberCount", "Hidden"))
 
-   
     video_ids = get_videos_from_playlist(playlist_id, youtube, 120)
-    df = pd.DataFrame(get_video_stats(video_ids, youtube))
+    df = get_video_stats(video_ids, youtube)
 
-  
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(
-        ["📄 Video Table", "📈 Charts", "🏆 Top Videos", "⬇ Download", "🖼 Gallery"]
-    )
+    tab1, tab2, tab3, tab4 = st.tabs(["📄 Table", "📈 Charts", "🏆 Top", "⬇ Download"])
 
     with tab1:
-        st.subheader("All Videos")
         st.dataframe(df, use_container_width=True)
 
     with tab2:
-        st.subheader("Views vs Likes Trend")
         st.line_chart(df[["Views", "Likes"]])
 
     with tab3:
-        st.subheader("Top 5 Videos")
         st.dataframe(df.sort_values(by="Views", ascending=False).head(5))
 
     with tab4:
-        st.subheader("Download CSV")
         st.download_button("Download CSV", df.to_csv(index=False), "youtube_data.csv")
-
-    with tab5:
-        st.subheader("Thumbnail Gallery")
-        cols = st.columns(4)
-        for i, row in df.iterrows():
-            with cols[i % 4]:
-                st.image(row["Thumbnail"], use_container_width=True)
-                st.caption(row["Title"][:40] + "...")
