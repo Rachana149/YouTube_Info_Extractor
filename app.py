@@ -64,17 +64,17 @@ if not st.session_state.start_dashboard:
 
 
 def extract_channel_id(url, youtube):
-    try:
-        url = url.strip()
+    url = url.strip()
 
-        # Case 1: direct channel link
-        if "/channel/" in url:
-            return url.split("channel/")[1].split("?")[0]
+   
+    if "youtube.com/channel/" in url:
+        return url.split("channel/")[1].split("?")[0]
 
-        # Case 2: Handle format (@username)
-        if "@" in url:
-            handle = url.split("@")[1]  
+    
+    if "@" in url:
+        handle = url.split("@")[1]  
 
+        try:
             req = youtube.channels().list(
                 part="id",
                 forHandle=handle
@@ -82,16 +82,14 @@ def extract_channel_id(url, youtube):
 
             if req.get("items"):
                 return req["items"][0]["id"]
+        except:
+            return None
 
-        # Case 3: direct Channel ID
-        if re.match(r"UC[A-Za-z0-9_-]{22}", url):
-            return url
-        
-        return None
+    
+    if url.startswith("UC") and len(url) > 20:
+        return url
 
-    except Exception as e:
-        print("Error extracting ID:", e)
-        return None
+    return None
 
 
 
